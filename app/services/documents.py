@@ -55,6 +55,15 @@ def load_documents(paths: Iterable[Path]) -> list[SourceDocument]:
     return documents
 
 
+def load_and_chunk_documents(
+    paths: Iterable[Path], chunk_size: int = 900, overlap: int = 120
+) -> list[SourceDocument]:
+    chunks: list[SourceDocument] = []
+    for document in load_documents(paths):
+        chunks.extend(chunk_document(document, chunk_size=chunk_size, overlap=overlap))
+    return chunks
+
+
 def chunk_document(document: SourceDocument, chunk_size: int = 900, overlap: int = 120) -> list[SourceDocument]:
     """Split by headings/paragraphs first, then enforce bounded chunks."""
     blocks = [block.strip() for block in re.split(r"\n(?=#{1,6}\s)|\n\s*\n", document.content) if block.strip()]
@@ -83,6 +92,11 @@ def chunk_document(document: SourceDocument, chunk_size: int = 900, overlap: int
         item.title = f"{document.title} · 片段 {index + 1}"
         item.content = chunk
         item.snippet = re.sub(r"\s+", " ", chunk)[:240]
-        item.metadata = {**document.metadata, "chunk_index": index}
+        item.metadata = {
+            **document.metadata,
+            "parent_title": document.title,
+            "chunk_index": index,
+            "chunk_count": len(chunks),
+        }
         result.append(item)
     return result

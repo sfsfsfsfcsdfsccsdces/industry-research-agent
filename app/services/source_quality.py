@@ -78,7 +78,7 @@ def prepare_and_deduplicate(sources: list[SourceDocument]) -> list[SourceDocumen
     for index, source in enumerate(ordered, start=1):
         source.source_id = f"S{index}"
 
-    # Approximate cross validation by counting distinct domains that mention the same key terms.
+    # Use distinct domains mentioning the same terms as an auxiliary cross-source support signal.
     term_domains: dict[str, set[str]] = defaultdict(set)
     for source in ordered:
         terms = set(re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}|[\u4e00-\u9fff]{2,8}", normalize_text(source.content)))
@@ -86,6 +86,6 @@ def prepare_and_deduplicate(sources: list[SourceDocument]) -> list[SourceDocumen
             term_domains[term].add(source.domain or source.source_type)
     for source in ordered:
         terms = set(re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}|[\u4e00-\u9fff]{2,8}", normalize_text(source.content)))
-        support = max((len(term_domains[t]) for t in terms if t in term_domains), default=1)
-        source.cross_validation_count = min(support, 9)
+        cross_source_support = max((len(term_domains[t]) for t in terms if t in term_domains), default=1)
+        source.cross_source_support_count = min(cross_source_support, 9)
     return ordered

@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.core.config import Settings
 from app.models import ResearchMode, SourceDocument
-from app.services.documents import load_documents
+from app.services.documents import load_and_chunk_documents
 from app.services.exporter import ReportExporter
 from app.services.llm import OpenAICompatibleClient
 from app.services.planner import ResearchPlanner
@@ -73,7 +73,7 @@ class ResearchWorkflow:
 
     def _uploaded_documents(self) -> list[SourceDocument]:
         paths = [path for path in self.settings.upload_dir.glob("*") if path.is_file()]
-        return load_documents(paths)
+        return load_and_chunk_documents(paths)
 
     async def _retrieve(self, state: ResearchState) -> dict:
         loop_count = state.get("loop_count", 0)
@@ -85,13 +85,13 @@ class ResearchWorkflow:
         if mode in (ResearchMode.LOCAL, ResearchMode.HYBRID):
             local = self._uploaded_documents()
             if not local and self.settings.demo_mode:
-                local = load_documents(sorted(self.settings.demo_data_dir.glob("*")))
+                local = load_and_chunk_documents(sorted(self.settings.demo_data_dir.glob("*")))
             found.extend(local)
         await self._emit("retriever", f"检索得到 {len(found)} 条原始资料", 39 + loop_count * 7)
         return {"sources": found}
 
     async def _quality_gate(self, state: ResearchState) -> dict:
-        await self._emit("quality_gate", "正在执行 URL/内容去重、可信度评分与交叉验证", 49)
+        await self._emit("quality_gate", "正在执行 URL/内容去重、可信度评分与跨来源支持度分析", 49)
         prepared = prepare_and_deduplicate(state.get("sources", []))
         self.vector_index.add(prepared)
         ranked = self.reranker.rank(state["query"] + " " + " ".join(state["questions"]), prepared, limit=14)
@@ -123,7 +123,7 @@ class ResearchWorkflow:
         }
 
     async def _compress(self, state: ResearchState) -> dict:
-        await self._emit("compressor", "正在分阶段压缩证据并保留引用锚点", 68)
+        await self._emit("compressor", "正在抽取证据片段、控制上下文预算并保留引用锚点", 68)
         context = compress_context(state.get("ranked_sources", []), self.settings.context_char_limit)
         return {"context": context}
 

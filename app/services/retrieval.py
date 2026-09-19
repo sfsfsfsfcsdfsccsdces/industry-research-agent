@@ -45,7 +45,9 @@ class ChromaVectorIndex:
         self.collection_name = collection_name
         self.embedding = HashEmbedding()
         self._items: list[tuple[SourceDocument, list[float]]] = []
+        self._indexed_ids: set[str] = set()
         self._collection = None
+        self.last_query_backend = "memory"
         try:
             import chromadb
 
@@ -54,23 +56,63 @@ class ChromaVectorIndex:
         except Exception:
             self._collection = None
 
+    @staticmethod
+    def _document_id(document: SourceDocument) -> str:
+        fingerprint = document.fingerprint or hashlib.sha256(document.content.encode("utf-8")).hexdigest()
+        return f"doc-{fingerprint}"
+
     def add(self, documents: list[SourceDocument]) -> None:
         if not documents:
             return
         embeddings = [self.embedding.embed(item.content) for item in documents]
         self._items.extend(zip(documents, embeddings, strict=False))
         if self._collection is not None:
-            ids = [f"{item.source_id or 'doc'}-{item.fingerprint[:12]}-{index}" for index, item in enumerate(documents)]
+            ids = [self._document_id(item) for item in documents]
             self._collection.upsert(
                 ids=ids,
                 documents=[item.content for item in documents],
                 embeddings=embeddings,
-                metadatas=[{"source_id": item.source_id, "title": item.title} for item in documents],
+                metadatas=[
+                    {"document_id": document_id, "source_id": item.source_id, "title": item.title}
+                    for document_id, item in zip(ids, documents, strict=False)
+                ],
             )
+            self._indexed_ids.update(ids)
+
+    def _memory_scores(self, query_vector: list[float], documents: list[SourceDocument]) -> dict[int, float]:
+        self.last_query_backend = "memory"
+        return {
+            id(item): max(0.0, cosine_similarity(query_vector, self.embedding.embed(item.content)))
+            for item in documents
+        }
 
     def scores(self, query: str, documents: list[SourceDocument]) -> dict[int, float]:
         query_vector = self.embedding.embed(query)
-        return {id(item): max(0.0, cosine_similarity(query_vector, self.embedding.embed(item.content))) for item in documents}
+        document_ids = [self._document_id(item) for item in documents]
+        if self._collection is None or not all(document_id in self._indexed_ids for document_id in document_ids):
+            return self._memory_scores(query_vector, documents)
+
+        try:
+            result = self._collection.query(
+                query_embeddings=[query_vector],
+                n_results=len(document_ids),
+                where={"document_id": {"$in": document_ids}},
+                include=["distances"],
+            )
+            returned_ids = (result.get("ids") or [[]])[0]
+            distances = (result.get("distances") or [[]])[0]
+            by_document_id = dict(zip(document_ids, documents, strict=False))
+            scores = {
+                id(by_document_id[document_id]): max(0.0, min(1.0, 1.0 - float(distance)))
+                for document_id, distance in zip(returned_ids, distances, strict=False)
+                if document_id in by_document_id
+            }
+            if len(scores) == len(documents):
+                self.last_query_backend = "chroma"
+                return scores
+        except Exception:
+            pass
+        return self._memory_scores(query_vector, documents)
 
 
 class HybridReranker:
@@ -89,11 +131,14 @@ class HybridReranker:
             overlap = sum(min(count, terms.get(term, 0)) for term, count in query_terms.items())
             keyword = overlap / max(sum(query_terms.values()), 1)
             vector = vector_scores[id(item)]
-            cross = min(item.cross_validation_count / 3.0, 1.0)
+            cross_source_support = min(item.cross_source_support_count / 3.0, 1.0)
             item.keyword_score = round(min(keyword, 1.0), 4)
             item.vector_score = round(vector, 4)
             item.relevance_score = round(
-                0.45 * vector + 0.30 * min(keyword, 1.0) + 0.18 * item.credibility_score + 0.07 * cross,
+                0.45 * vector
+                + 0.30 * min(keyword, 1.0)
+                + 0.18 * item.credibility_score
+                + 0.07 * cross_source_support,
                 4,
             )
         return sorted(documents, key=lambda item: item.relevance_score, reverse=True)[:limit]

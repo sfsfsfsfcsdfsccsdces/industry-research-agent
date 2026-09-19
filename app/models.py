@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 def utc_now() -> datetime:
@@ -57,7 +57,10 @@ class SourceDocument(BaseModel):
     relevance_score: float = 0.0
     keyword_score: float = 0.0
     vector_score: float = 0.0
-    cross_validation_count: int = 1
+    cross_source_support_count: int = Field(
+        default=1,
+        validation_alias=AliasChoices("cross_source_support_count", "cross_validation_count"),
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

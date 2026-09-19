@@ -7,7 +7,7 @@ from app.services.llm import OpenAICompatibleClient
 
 
 def compress_context(sources: list[SourceDocument], char_limit: int) -> str:
-    """Evidence-aware extractive compression that preserves citation anchors."""
+    """Extract evidence snippets under a character budget while preserving citation anchors."""
     sections: list[str] = []
     budget = char_limit
     for item in sources:
@@ -70,7 +70,7 @@ class ReportWriter:
 
 ## 执行摘要
 
-本报告围绕“{query}”完成了问题拆解、多源检索、来源去重、可信度评估和证据压缩。当前结论基于 {len(sources)} 个去重来源，主要证据覆盖产品定位、技术能力、部署方式与应用风险。综合证据表明，选型不应只比较功能数量，还应同时验证数据治理、集成成本、可运维性和实际业务闭环。{source_refs}
+本报告围绕“{query}”完成了问题拆解、多源检索、来源去重、可信度评估和证据片段抽取。当前结论基于 {len(sources)} 个去重来源，主要证据覆盖产品定位、技术能力、部署方式与应用风险。综合证据表明，选型不应只比较功能数量，还应同时验证数据治理、集成成本、可运维性和实际业务闭环。{source_refs}
 
 ## 1. 研究范围与方法
 
@@ -100,7 +100,7 @@ class ReportWriter:
 
 ### 风险
 
-- 公开资料可能存在营销偏差、版本滞后或统计口径不一致，应对关键结论进行至少两个独立来源的交叉验证。{source_refs}
+- 公开资料可能存在营销偏差、版本滞后或统计口径不一致；系统提供跨来源关键词支持度作为辅助信号，关键结论仍需人工或 Claim Verification 复核。{source_refs}
 - 大模型生成内容存在幻觉风险；平台通过强制引用、来源追踪和报告后置校验降低风险，但不能完全消除。
 - 外部搜索、模型服务与向量库均可能发生超时或限流，生产部署需要配置重试、熔断、降级和成本告警。
 
@@ -118,7 +118,7 @@ class ReportWriter:
 ## 参考来源
 
 """ + "\n".join(
-            f"- [{item.source_id}] [{item.title}]({item.url}) — 可信度 {item.credibility_score:.2f}，交叉支持 {item.cross_validation_count}"
+            f"- [{item.source_id}] [{item.title}]({item.url}) — 可信度 {item.credibility_score:.2f}，跨来源关键词支持 {item.cross_source_support_count}"
             for item in sources
         )
 
