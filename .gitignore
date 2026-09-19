@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+runtime/chroma/
+runtime/research.db*
+runtime/reports/*
+runtime/uploads/*
+!runtime/reports/.gitkeep
+!runtime/uploads/.gitkeep

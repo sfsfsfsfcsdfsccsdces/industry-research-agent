@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.env
+runtime/chroma
+runtime/research.db*
+runtime/reports/*
+runtime/uploads/*
