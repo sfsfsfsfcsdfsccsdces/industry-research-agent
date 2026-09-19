@@ -1,6 +1,6 @@
 # InsightForge：行业与竞品智能调研报告生成平台
 
-一个可直接运行、适合简历展示和面试讲解的 AI Agent 项目。项目参考 [GPT Researcher](https://github.com/assafelovic/gpt-researcher) 的 Planner / Execution / Publisher 思路，使用 LangGraph 重新实现了有状态、可回退、可观测的调研工作流，并针对企业行业研究、竞品分析和技术选型场景补充了多源 RAG、来源质量评估、引用校验与报告导出。
+一个可直接运行的 AI Agent 项目。项目参考 [GPT Researcher](https://github.com/assafelovic/gpt-researcher) 的 Planner / Execution / Publisher 思路，使用 LangGraph 重新实现了有状态、可回退、可观测的调研工作流，并针对企业行业研究、竞品分析和技术选型场景补充了多源 RAG、来源质量评估、引用校验与报告导出。
 
 > 项目默认启用**演示模式**：没有企业数据、模型 Key 或 Tavily Key 也能跑通全流程。演示资料位于 `data/demo/`，内容明确标注为样例，不会伪装成企业内部数据。
 
@@ -156,15 +156,3 @@ tests/                     # 单元与工作流测试
 Dockerfile
 docker-compose.yml
 ```
-
-## 10. 面试时如何介绍
-
-可以用下面这段话开场：
-
-> 这是一个参考 GPT Researcher 思路二次设计的行业与竞品调研 Agent。我主要负责 LangGraph 状态机、多源 RAG、来源质量和报告生成闭环。系统先把宽泛问题拆成子问题，并行检索网页和内部文档，再通过 URL/内容去重、混合重排和交叉支持度筛证据，最后压缩上下文并生成带可追溯引用的报告。工程上我用 FastAPI + SSE 展示实时进度，用 Redis 管高频状态、SQLite 留存 Trace，并对搜索失败、循环失控和无效引用做了重试、降级、最大步数与后置校验。
-
-注意：面试中应说明当前仓库的离线资料是演示数据；如果没有真实生产用户或压测数据，不要声称已经在企业生产环境上线。
-
-## 11. 与上游项目的关系
-
-本仓库不是 GPT Researcher 源码的复制品，而是参考其公开的 Planner / Execution / Publisher 架构后，围绕简历项目目标进行的独立实现。上游 GPT Researcher 使用 Apache-2.0 许可证；本仓库自编代码使用 MIT 许可证。
